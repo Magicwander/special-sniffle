@@ -1,1 +1,398 @@
-<!doctype html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Retro Arcade Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #ff2e63;
+            --neon-blue: #00fff2;
+            --neon-purple: #bf00ff;
+            --neon-pink: #ff00ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            min-height: 100vh;
+            font-family: 'Russo One', sans-serif;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 3em;
+            margin-bottom: 0.5em;
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent),
+                         0 0 20px var(--accent),
+                         0 0 40px var(--accent);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent); }
+            to { text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent); }
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 2px solid transparent;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            width: 300%;
+            height: 300%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            transition: 0.5s;
+            transform: rotate(45deg);
+        }
+
+        .game-card:hover::before {
+            top: 100%;
+            left: 100%;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(255, 46, 99, 0.3);
+        }
+
+        .game-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em;
+        }
+
+        .game-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: var(--neon-blue);
+        }
+
+        .game-description {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+        }
+
+        .play-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .game-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--primary);
+            padding: 20px;
+            border-radius: 15px;
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            overflow: hidden;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+            z-index: 1;
+        }
+
+        .game-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: float 3s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100vh); opacity: 0; }
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            color: var(--neon-blue);
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Retro Arcade Hub</h1>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="totalGames">11</div>
+                <div class="stat-label">Games</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalPlays">0</div>
+                <div class="stat-label">Total Plays</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="highScore">0</div>
+                <div class="stat-label">High Score</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="games-grid" id="gamesGrid">
+        <!-- Game cards will be added here via JavaScript -->
+    </div>
+
+    <div class="game-modal" id="gameModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeGame()">×</button>
+            <iframe class="game-frame" id="gameFrame"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const games = [
+            {
+                title: "Guess the Number",
+                icon: "🔢",
+                description: "Guess the correct number to win!",
+                url: "guessthenumber.html"
+            },
+            {
+                title: "Ball Catch",
+                icon: "⚽",
+                description: "Catch the falling balls!",
+                url: "ballcatch.html"
+            },
+            {
+                title: "Memory",
+                icon: "🎴",
+                description: "Match pairs of cards in this memory challenge!",
+                url: "memory.html"
+            },
+            {
+                title: "Hangman",
+                icon: "😵",
+                description: "Guess the word before you run out of lives!",
+                url: "hangman.html"
+            },
+            {
+                title: "Rock Paper Scissors",
+                icon: "✊",
+                description: "Classic game of Rock, Paper, Scissors!",
+                url: "Rockpapersciisor.html"
+            },
+            {
+                title: "Snake",
+                icon: "🐍",
+                description: "Classic snake game with modern twists!",
+                url: "snake.html"
+            },
+            {
+                title: "Whack-a-Mole",
+                icon: "🔨",
+                description: "Test your reflexes by whacking moles as they pop up!",
+                url: "wakamole.html"
+            },
+            {
+                title: "Tic Tac Toe",
+                icon: "❌",
+                description: "Classic game of Tic Tac Toe!",
+                url: "tictactoe.html"
+            },
+            {
+                title: "Pong",
+                icon: "🏓",
+                description: "Classic Pong game!",
+                url: "pong.html"
+            },
+            {
+                title: "Simon Says",
+                icon: "🎮",
+                description: "Follow the pattern and test your memory!",
+                url: "simon-says.html"
+            },
+            {
+                title: "Memory Match",
+                icon: "🎴",
+                description: "Match pairs of cards in this memory challenge!",
+                url: "memory-match.html"
+            }
+        ];
+
+        function createGameCards() {
+            const grid = document.getElementById('gamesGrid');
+            games.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.innerHTML = `
+                    <div class="game-icon">${game.icon}</div>
+                    <h2 class="game-title">${game.title}</h2>
+                    <p class="game-description">${game.description}</p>
+                    <button class="play-btn" onclick="playGame('${game.url}')">Play Now</button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function playGame(url) {
+            const modal = document.getElementById('gameModal');
+            const frame = document.getElementById('gameFrame');
+            frame.src = url;
+            modal.style.display = 'flex';
+            updateStats();
+        }
+
+        function closeGame() {
+            const modal = document.getElementById('gameModal');
+            const frame = document.getElementById('gameFrame');
+            modal.style.display = 'none';
+            frame.src = '';
+        }
+
+        function updateStats() {
+            const plays = parseInt(localStorage.getItem('totalPlays') || '0') + 1;
+            localStorage.setItem('totalPlays', plays);
+            document.getElementById('totalPlays').textContent = plays;
+        }
+
+        function createParticles() {
+            const header = document.querySelector('.header');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.animationDelay = `${Math.random() * 3}s`;
+                header.appendChild(particle);
+            }
+        }
+
+        // Initialize
+        createGameCards();
+        createParticles();
+        document.getElementById('totalPlays').textContent =
+            localStorage.getItem('totalPlays') || '0';
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeGame();
+        });
+    </script>
+</body>
+</html>
