@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Arcade Ball Catcher</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --success: #2ecc71;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-container {
+            width: 800px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .player {
+            width: 100px;
+            height: 20px;
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+            transition: width 0.3s;
+        }
+
+        .ball {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .power-up {
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        .power-up.size {
+            background: var(--success);
+            box-shadow: 0 0 15px var(--success);
+        }
+
+        .power-up.slow {
+            background: var(--secondary);
+            box-shadow: 0 0 15px var(--secondary);
+        }
+
+        .power-up.points {
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .score-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .lives {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .life {
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particleAnim 1s ease-out forwards;
+        }
+
+        @keyframes particleAnim {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+            display: none;
+        }
+
+        .btn {
+            background: var(--secondary);
+            border: none;
+            padding: 15px 30px;
+            color: #fff;
+            font-family: inherit;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+        }
+
+        .level-indicator {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .combo-text {
+            position: absolute;
+            color: #fff;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="score-panel">Score: <span id="score">0</span></div>
+        <div class="level-indicator">Level: <span id="level">1</span></div>
+        <div class="lives" id="lives"></div>
+        <div class="player" id="player"></div>
+        <div class="game-over" id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>High Score: <span id="highScore">0</span></p>
+            <button class="btn" onclick="game.restart()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class BallCatcher {
+            constructor() {
+                this.container = document.getElementById('gameContainer');
+                this.player = document.getElementById('player');
+                this.scoreDisplay = document.getElementById('score');
+                this.levelDisplay = document.getElementById('level');
+                this.livesDisplay = document.getElementById('lives');
+                this.gameOverScreen = document.getElementById('gameOver');
+                
+                this.score = 0;
+                this.level = 1;
+                this.lives = 3;
+                this.balls = [];
+                this.powerUps = [];
+                this.playerWidth = 100;
+                this.playerSpeed = 10;
+                this.ballSpeed = 3;
+                this.combo = 0;
+                this.lastCatch = 0;
+
+                this.initGame();
+            }
+
+            initGame() {
+                this.container.addEventListener('mousemove', (e) => {
+                    const rect = this.container.getBoundingClientRect();
+                    let x = e.clientX - rect.left - this.playerWidth/2;
+                    x = Math.max(0, Math.min(x, rect.width - this.playerWidth));
+                    this.player.style.left = `${x}px`;
+                });
+
+                this.updateLives();
+                this.startGameLoop();
+            }
+
+            startGameLoop() {
+                if (this.gameLoop) return;
+                
+                this.gameLoop = setInterval(() => {
+                    this.updateGame();
+                }, 16);
+
+                this.spawnLoop = setInterval(() => {
+                    this.spawnBall();
+                    if (Math.random() < 0.1) this.spawnPowerUp();
+                }, 2000 - (this.level * 100));
+            }
+
+            updateGame() {
+                // Update balls
+                this.balls.forEach((ball, index) => {
+                    ball.style.top = `${parseFloat(ball.style.top) + this.ballSpeed}px`;
+                    
+                    // Check for catch
+                    if (this.checkCollision(ball, this.player)) {
+                        this.catchBall(ball);
+                        this.balls.splice(index, 1);
+                        ball.remove();
+                    }
+                    // Check for miss
+                    else if (parseFloat(ball.style.top) > this.container.clientHeight) {
+                        this.missBall();
+                        this.balls.splice(index, 1);
+                        ball.remove();
+                    }
+                });
+
+                // Update power-ups
+                this.powerUps.forEach((powerUp, index) => {
+                    powerUp.style.top = `${parseFloat(powerUp.style.top) + 2}px`;
+                    
+                    if (this.checkCollision(powerUp, this.player)) {
+                        this.activatePowerUp(powerUp.dataset.type);
+                        this.powerUps.splice(index, 1);
+                        powerUp.remove();
+                    }
+                    else if (parseFloat(powerUp.style.top) > this.container.clientHeight) {
+                        this.powerUps.splice(index, 1);
+                        powerUp.remove();
+                    }
+                });
+            }
+
+            spawnBall() {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+                ball.style.left = `${Math.random() * (this.container.clientWidth - 20)}px`;
+                ball.style.top = '0px';
+                this.container.appendChild(ball);
+                this.balls.push(ball);
+            }
+
+            spawnPowerUp() {
+                const types = ['size', 'slow', 'points'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const powerUp = document.createElement('div');
+                powerUp.className = `power-up ${type}`;
+                powerUp.dataset.type = type;
+                powerUp.style.left = `${Math.random() * (this.container.clientWidth - 30)}px`;
+                powerUp.style.top = '0px';
+                this.container.appendChild(powerUp);
+                this.powerUps.push(powerUp);
+            }
+
+            catchBall(ball) {
+                const now = Date.now();
+                if (now - this.lastCatch < 1000) {
+                    this.combo++;
+                } else {
+                    this.combo = 1;
+                }
+                this.lastCatch = now;
+
+                const points = 10 * this.combo;
+                this.score += points;
+                this.scoreDisplay.textContent = this.score;
+                this.createParticles(ball);
+                this.showComboText(ball, `+${points}`);
+
+                if (this.score >= this.level * 100) {
+                    this.levelUp();
+                }
+            }
+
+            missBall() {
+                this.combo = 0;
+                this.lives--;
+                this.updateLives();
+
+                if (this.lives <= 0) {
+                    this.gameOver();
+                }
+            }
+
+            activatePowerUp(type) {
+                switch(type) {
+                    case 'size':
+                        this.playerWidth = 150;
+                        this.player.style.width = `${this.playerWidth}px`;
+                        setTimeout(() => {
+                            this.playerWidth = 100;
+                            this.player.style.width = `${this.playerWidth}px`;
+                        }, 5000);
+                        break;
+                    case 'slow':
+                        const originalSpeed = this.ballSpeed;
+                        this.ballSpeed = 1;
+                        setTimeout(() => {
+                            this.ballSpeed = originalSpeed;
+                        }, 5000);
+                        break;
+                    case 'points':
+                        this.score += 50;
+                        this.scoreDisplay.textContent = this.score;
+                        break;
+                }
+            }
+
+            levelUp() {
+                this.level++;
+                this.levelDisplay.textContent = this.level;
+                this.ballSpeed += 0.5;
+                this.createLevelUpEffect();
+            }
+
+            createParticles(element) {
+                const rect = element.getBoundingClientRect();
+                for (let i = 0; i < 10; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = `${rect.left + rect.width/2}px`;
+                    particle.style.top = `${rect.top + rect.height/2}px`;
+                    particle.style.background = '#fff';
+                    this.container.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            showComboText(element, text) {
+                const rect = element.getBoundingClientRect();
+                const comboText = document.createElement('div');
+                comboText.className = 'combo-text';
+                comboText.textContent = text;
+                comboText.style.left = `${rect.left}px`;
+                comboText.style.top = `${rect.top}px`;
+                this.container.appendChild(comboText);
+                setTimeout(() => comboText.remove(), 1000);
+            }
+
+            createLevelUpEffect() {
+                const text = document.createElement('div');
+                text.className = 'combo-text';
+                text.textContent = `Level ${this.level}!`;
+                text.style.left = '50%';
+                text.style.top = '50%';
+                text.style.transform = 'translate(-50%, -50%)';
+                text.style.fontSize = '48px';
+                this.container.appendChild(text);
+                setTimeout(() => text.remove(), 1000);
+            }
+
+            checkCollision(element1, element2) {
+                const rect1 = element1.getBoundingClientRect();
+                const rect2 = element2.getBoundingClientRect();
+                return !(rect1.right < rect2.left || 
+                        rect1.left > rect2.right || 
+                        rect1.bottom < rect2.top || 
+                        rect1.top > rect2.bottom);
+            }
+
+            updateLives() {
+                this.livesDisplay.innerHTML = '';
+                for (let i = 0; i < this.lives; i++) {
+                    const life = document.createElement('div');
+                    life.className = 'life';
+                    this.livesDisplay.appendChild(life);
+                }
+            }
+
+            gameOver() {
+                clearInterval(this.gameLoop);
+                clearInterval(this.spawnLoop);
+                this.gameLoop = null;
+                
+                const highScore = Math.max(this.score, localStorage.getItem('catcherHighScore') || 0);
+                localStorage.setItem('catcherHighScore', highScore);
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('highScore').textContent = highScore;
+                this.gameOverScreen.style.display = 'block';
+            }
+
+            restart() {
+                this.score = 0;
+                this.level = 1;
+                this.lives = 3;
+                this.balls.forEach(ball => ball.remove());
+                this.balls = [];
+                this.powerUps.forEach(powerUp => powerUp.remove());
+                this.powerUps = [];
+                this.ballSpeed = 3;
+                this.combo = 0;
+                
+                this.scoreDisplay.textContent = '0';
+                this.levelDisplay.textContent = '1';
+                this.gameOverScreen.style.display = 'none';
+                this.updateLives();
+                this.startGameLoop();
+            }
+        }
+
+        const game = new BallCatcher();
+    </script>
+</body>
+</html>

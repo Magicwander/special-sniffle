@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Battleship Game</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .boards {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: #0a192f;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .cell:hover {
+            background: #142c4c;
+        }
+
+        .cell.ship {
+            background: #4CAF50;
+        }
+
+        .cell.hit {
+            background: #f44336;
+        }
+
+        .cell.miss {
+            background: #2196F3;
+        }
+
+        .board-label {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: #4CAF50;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 24px;
+            font-size: 1.2em;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .ship-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .ship-option {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ship-option.selected {
+            background: #4CAF50;
+        }
+
+        .ships-left {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="status" id="status">Place your ships!</div>
+        
+        <div class="ships-left" id="shipsLeft"></div>
+        
+        <div class="ship-selector" id="shipSelector">
+            <div class="ship-option" data-size="5">Carrier (5)</div>
+            <div class="ship-option" data-size="4">Battleship (4)</div>
+            <div class="ship-option" data-size="3">Cruiser (3)</div>
+            <div class="ship-option" data-size="3">Submarine (3)</div>
+            <div class="ship-option" data-size="2">Destroyer (2)</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="rotateBtn">Rotate Ship</button>
+            <button class="btn" id="startBtn" disabled>Start Game</button>
+            <button class="btn" id="resetBtn">Reset</button>
+        </div>
+
+        <div class="boards">
+            <div>
+                <div class="board-label">Your Board</div>
+                <div class="board" id="playerBoard"></div>
+            </div>
+            <div>
+                <div class="board-label">Computer's Board</div>
+                <div class="board" id="computerBoard"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2 id="gameOverText">Game Over!</h2>
+        <button class="btn" onclick="location.reload()">Play Again</button>
+    </div>
+    <script>
+        class BattleshipGame {
+            constructor() {
+                this.boardSize = 10;
+                this.ships = [
+                    { name: 'Carrier', size: 5 },
+                    { name: 'Battleship', size: 4 },
+                    { name: 'Cruiser', size: 3 },
+                    { name: 'Submarine', size: 3 },
+                    { name: 'Destroyer', size: 2 }
+                ];
+                this.isHorizontal = true;
+                this.selectedShip = null;
+                this.placedShips = [];
+                this.computerShips = [];
+                this.gameStarted = false;
+                
+                this.initializeGame();
+            }
+
+            initializeGame() {
+                this.createBoards();
+                this.setupEventListeners();
+                this.updateShipsLeft();
+            }
+
+            createBoards() {
+                const playerBoard = document.getElementById('playerBoard');
+                const computerBoard = document.getElementById('computerBoard');
+                
+                for (let i = 0; i < this.boardSize * this.boardSize; i++) {
+                    const playerCell = this.createCell(i, 'player');
+                    const computerCell = this.createCell(i, 'computer');
+                    
+                    playerBoard.appendChild(playerCell);
+                    computerBoard.appendChild(computerCell);
+                }
+            }
+
+            createCell(index, type) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = index;
+                
+                if (type === 'player') {
+                    cell.addEventListener('click', () => this.placeShip(index));
+                    cell.addEventListener('mouseover', () => this.showShipPreview(index));
+                    cell.addEventListener('mouseout', () => this.removeShipPreview());
+                } else {
+                    cell.addEventListener('click', () => this.handleShot(index));
+                }
+                
+                return cell;
+            }
+
+            showShipPreview(index) {
+                if (!this.selectedShip || this.gameStarted) return;
+                
+                const positions = this.getShipPositions(index, this.selectedShip.size);
+                if (!positions) return;
+
+                positions.forEach(pos => {
+                    const cell = document.querySelector(`#playerBoard .cell[data-index="${pos}"]`);
+                    cell.style.background = '#4CAF50';
+                    cell.style.opacity = '0.5';
+                });
+            }
+
+            removeShipPreview() {
+                document.querySelectorAll('#playerBoard .cell').forEach(cell => {
+                    if (!cell.classList.contains('ship')) {
+                        cell.style.background = '';
+                        cell.style.opacity = '';
+                    }
+                });
+            }
+
+            placeShip(index) {
+                if (!this.selectedShip || this.gameStarted) return;
+
+                const positions = this.getShipPositions(index, this.selectedShip.size);
+                if (!positions) return;
+
+                positions.forEach(pos => {
+                    const cell = document.querySelector(`#playerBoard .cell[data-index="${pos}"]`);
+                    cell.classList.add('ship');
+                });
+
+                this.placedShips.push({
+                    positions: positions,
+                    size: this.selectedShip.size
+                });
+
+                const shipOption = document.querySelector(`.ship-option[data-size="${this.selectedShip.size}"]`);
+                shipOption.style.display = 'none';
+                
+                this.selectedShip = null;
+                this.updateShipsLeft();
+
+                if (this.placedShips.length === this.ships.length) {
+                    document.getElementById('startBtn').disabled = false;
+                }
+            }
+
+            getShipPositions(startIndex, size) {
+                const positions = [];
+                const row = Math.floor(startIndex / this.boardSize);
+                const col = startIndex % this.boardSize;
+
+                for (let i = 0; i < size; i++) {
+                    if (this.isHorizontal) {
+                        if (col + i >= this.boardSize) return null;
+                        const index = startIndex + i;
+                        if (this.isOccupied(index)) return null;
+                        positions.push(index);
+                    } else {
+                        if (row + i >= this.boardSize) return null;
+                        const index = startIndex + (i * this.boardSize);
+                        if (this.isOccupied(index)) return null;
+                        positions.push(index);
+                    }
+                }
+
+                return positions;
+            }
+
+            isOccupied(index) {
+                return document.querySelector(`#playerBoard .cell[data-index="${index}"]`).classList.contains('ship');
+            }
+
+            placeComputerShips() {
+                this.ships.forEach(ship => {
+                    let placed = false;
+                    while (!placed) {
+                        const index = Math.floor(Math.random() * (this.boardSize * this.boardSize));
+                        const horizontal = Math.random() < 0.5;
+                        const positions = this.getComputerShipPositions(index, ship.size, horizontal);
+                        
+                        if (positions) {
+                            this.computerShips.push({ positions });
+                            placed = true;
+                        }
+                    }
+                });
+            }
+
+            getComputerShipPositions(startIndex, size, horizontal) {
+                const positions = [];
+                const row = Math.floor(startIndex / this.boardSize);
+                const col = startIndex % this.boardSize;
+
+                for (let i = 0; i < size; i++) {
+                    if (horizontal) {
+                        if (col + i >= this.boardSize) return null;
+                        const index = startIndex + i;
+                        if (this.isComputerOccupied(index)) return null;
+                        positions.push(index);
+                    } else {
+                        if (row + i >= this.boardSize) return null;
+                        const index = startIndex + (i * this.boardSize);
+                        if (this.isComputerOccupied(index)) return null;
+                        positions.push(index);
+                    }
+                }
+
+                return positions;
+            }
+
+            isComputerOccupied(index) {
+                return this.computerShips.some(ship => ship.positions.includes(index));
+            }
+
+            handleShot(index) {
+                if (!this.gameStarted) return;
+                
+                const cell = document.querySelector(`#computerBoard .cell[data-index="${index}"]`);
+                if (cell.classList.contains('hit') || cell.classList.contains('miss')) return;
+
+                const isHit = this.computerShips.some(ship => ship.positions.includes(index));
+                
+                if (isHit) {
+                    cell.classList.add('hit');
+                    if (this.checkWin()) {
+                        this.endGame('You Win! 🎉');
+                        return;
+                    }
+                } else {
+                    cell.classList.add('miss');
+                }
+
+                setTimeout(() => this.computerTurn(), 500);
+            }
+
+            computerTurn() {
+                let index;
+                do {
+                    index = Math.floor(Math.random() * (this.boardSize * this.boardSize));
+                    const cell = document.querySelector(`#playerBoard .cell[data-index="${index}"]`);
+                    if (!cell.classList.contains('hit') && !cell.classList.contains('miss')) {
+                        if (cell.classList.contains('ship')) {
+                            cell.classList.add('hit');
+                            if (this.checkLoss()) {
+                                this.endGame('Game Over! 💀');
+                                return;
+                            }
+                        } else {
+                            cell.classList.add('miss');
+                        }
+                        break;
+                    }
+                } while (true);
+            }
+
+            checkWin() {
+                return this.computerShips.every(ship => 
+                    ship.positions.every(pos => 
+                        document.querySelector(`#computerBoard .cell[data-index="${pos}"]`).classList.contains('hit')
+                    )
+                );
+            }
+
+            checkLoss() {
+                return this.placedShips.every(ship =>
+                    ship.positions.every(pos =>
+                        document.querySelector(`#playerBoard .cell[data-index="${pos}"]`).classList.contains('hit')
+                    )
+                );
+            }
+
+            endGame(message) {
+                this.gameStarted = false;
+                document.getElementById('gameOverText').textContent = message;
+                document.getElementById('gameOver').style.display = 'flex';
+            }
+
+            updateShipsLeft() {
+                const shipsLeft = this.ships.length - this.placedShips.length;
+                document.getElementById('shipsLeft').textContent = 
+                    `Ships left to place: ${shipsLeft}`;
+            }
+
+            setupEventListeners() {
+                document.querySelectorAll('.ship-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const size = parseInt(option.dataset.size);
+                        this.selectedShip = this.ships.find(ship => ship.size === size);
+                        document.querySelectorAll('.ship-option').forEach(opt => 
+                            opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                    });
+                });
+
+                document.getElementById('rotateBtn').addEventListener('click', () => {
+                    this.isHorizontal = !this.isHorizontal;
+                });
+
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    this.gameStarted = true;
+                    this.placeComputerShips();
+                    document.getElementById('status').textContent = 'Game Started! Take your shot!';
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('shipSelector').style.display = 'none';
+                    document.getElementById('rotateBtn').style.display = 'none';
+                });
+
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    location.reload();
+                });
+            }
+        }
+
+        // Start the game
+        const game = new BattleshipGame();
+    </script>
+</body>
+</html>

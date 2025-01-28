@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimate Ping Pong</title>
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(45deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        #ball {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #fff;
+        }
+
+        .trail {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .paddle {
+            position: absolute;
+            width: 15px;
+            height: 90px;
+            background: linear-gradient(to bottom, #fff, rgba(255, 255, 255, 0.8));
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        #player1 {
+            left: 10px;
+        }
+
+        #player2 {
+            right: 10px;
+        }
+
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            z-index: 1;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            background: white;
+            border-radius: 50%;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ball"></div>
+        <div class="paddle" id="player1"></div>
+        <div class="paddle" id="player2"></div>
+        <div id="scoreDisplay">0 - 0</div>
+        <div id="instructions">
+            Player 1: W/S keys | Player 2: ↑/↓ arrows
+        </div>
+    </div>
+
+    <script>
+        const ball = document.getElementById('ball');
+        const player1 = document.getElementById('player1');
+        const player2 = document.getElementById('player2');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const gameContainer = document.getElementById('gameContainer');
+
+        let ballX = 400;
+        let ballY = 250;
+        let ballSpeedX = 7;
+        let ballSpeedY = 7;
+        let player1Y = 205;
+        let player2Y = 205;
+        const paddleSpeed = 15;
+        let player1Score = 0;
+        let player2Score = 0;
+        let trails = [];
+
+        function createTrail() {
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            trail.style.left = `${ballX}px`;
+            trail.style.top = `${ballY}px`;
+            gameContainer.appendChild(trail);
+            trails.push({
+                element: trail,
+                opacity: 1
+            });
+
+            if (trails.length > 10) {
+                const oldestTrail = trails.shift();
+                oldestTrail.element.remove();
+            }
+        }
+
+        function createParticles(x, y) {
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.width = `${Math.random() * 6 + 2}px`;
+                particle.style.height = particle.style.width;
+                gameContainer.appendChild(particle);
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function update() {
+            // Move ball
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // Create trail effect
+            createTrail();
+
+            // Update trails
+            trails.forEach((trail, index) => {
+                trail.opacity -= 0.1;
+                trail.element.style.opacity = trail.opacity;
+            });
+
+            // Ball collision with top and bottom
+            if (ballY <= 0 || ballY >= 485) {
+                ballSpeedY = -ballSpeedY;
+                createParticles(ballX, ballY);
+            }
+
+            // Ball collision with paddles
+            if (ballX <= 25 && ballY >= player1Y && ballY <= player1Y + 90) {
+                ballSpeedX = -ballSpeedX;
+                ballSpeedX *= 1.05;
+                ballSpeedY *= 1.05;
+                createParticles(ballX, ballY);
+            }
+
+            if (ballX >= 760 && ballY >= player2Y && ballY <= player2Y + 90) {
+                ballSpeedX = -ballSpeedX;
+                ballSpeedX *= 1.05;
+                ballSpeedY *= 1.05;
+                createParticles(ballX, ballY);
+            }
+
+            // Score points
+            if (ballX <= 0) {
+                player2Score++;
+                resetBall();
+            } else if (ballX >= 785) {
+                player1Score++;
+                resetBall();
+            }
+
+            // Update score display
+            scoreDisplay.textContent = `${player1Score} - ${player2Score}`;
+
+            // Update positions
+            ball.style.left = `${ballX}px`;
+            ball.style.top = `${ballY}px`;
+            player1.style.top = `${player1Y}px`;
+            player2.style.top = `${player2Y}px`;
+
+            requestAnimationFrame(update);
+        }
+
+        function resetBall() {
+            ballX = 400;
+            ballY = 250;
+            ballSpeedX = 7 * (Math.random() > 0.5 ? 1 : -1);
+            ballSpeedY = 7 * (Math.random() > 0.5 ? 1 : -1);
+            // Clear trails
+            trails.forEach(trail => trail.element.remove());
+            trails = [];
+        }
+
+        // Controls
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function handleInput() {
+            if (keys['w'] && player1Y > 0) player1Y -= paddleSpeed;
+            if (keys['s'] && player1Y < 410) player1Y += paddleSpeed;
+            if (keys['ArrowUp'] && player2Y > 0) player2Y -= paddleSpeed;
+            if (keys['ArrowDown'] && player2Y < 410) player2Y += paddleSpeed;
+            requestAnimationFrame(handleInput);
+        }
+
+        // Start the game
+        update();
+        handleInput();
+    </script>
+</body>
+</html>

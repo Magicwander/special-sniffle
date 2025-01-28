@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Color Number Guesser</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .number-display {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .input-section {
+            margin: 2rem 0;
+        }
+
+        .guess-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            font-size: 1.5rem;
+            color: white;
+            width: 150px;
+            text-align: center;
+            margin-right: 10px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .guess-input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+        }
+
+        .btn {
+            background: var(--secondary);
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .feedback {
+            font-size: 1.5rem;
+            margin: 1rem 0;
+            min-height: 2rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 2rem 0;
+            font-size: 1.2rem;
+        }
+
+        .temperature-meter {
+            width: 80%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 1rem auto;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .temperature-fill {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, var(--error), var(--warning), var(--success));
+            transition: width 0.5s ease;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        .hint-orb {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--warning);
+            position: absolute;
+            animation: pulse 1s infinite;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            right: 20px;
+            top: 20px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .victory-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .number-animation {
+            animation: popIn 0.5s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            70% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .history-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .history-item {
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .range-indicator {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            margin: 0 auto;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="hint-orb" id="hintOrb">💡</div>
+        <h1>Guess the Number</h1>
+        
+        <div class="number-display" id="numberDisplay">?</div>
+        
+        <div class="temperature-meter">
+            <div class="temperature-fill" id="temperatureFill"></div>
+        </div>
+        <div class="range-indicator">
+            <span>Cold</span>
+            <span>Warm</span>
+            <span>Hot</span>
+        </div>
+
+        <div class="input-section">
+            <input type="number" class="guess-input" id="guessInput" min="1" max="100" placeholder="1-100">
+            <button class="btn" id="guessBtn">Guess</button>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+
+        <div class="stats">
+            <div>Attempts: <span id="attempts">0</span></div>
+            <div>Best Score: <span id="bestScore">-</span></div>
+        </div>
+
+        <div class="history-list" id="historyList"></div>
+
+        <div class="victory-screen" id="victoryScreen">
+            <h2>Congratulations! 🎉</h2>
+            <p>You found the number in <span id="finalAttempts">0</span> attempts!</p>
+            <button class="btn" onclick="game.newGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        class NumberGuessingGame {
+            constructor() {
+                this.targetNumber = Math.floor(Math.random() * 100) + 1;
+                this.attempts = 0;
+                this.bestScore = localStorage.getItem('bestScore') || '-';
+                this.guessHistory = [];
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.updateStats();
+            }
+
+            initializeElements() {
+                this.input = document.getElementById('guessInput');
+                this.feedback = document.getElementById('feedback');
+                this.attemptsDisplay = document.getElementById('attempts');
+                this.bestScoreDisplay = document.getElementById('bestScore');
+                this.temperatureFill = document.getElementById('temperatureFill');
+                this.historyList = document.getElementById('historyList');
+                this.victoryScreen = document.getElementById('victoryScreen');
+                this.hintOrb = document.getElementById('hintOrb');
+            }
+
+            setupEventListeners() {
+                document.getElementById('guessBtn').addEventListener('click', () => this.makeGuess());
+                this.input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.makeGuess();
+                });
+                this.hintOrb.addEventListener('click', () => this.showHint());
+            }
+
+            makeGuess() {
+                const guess = parseInt(this.input.value);
+                if (isNaN(guess) || guess < 1 || guess > 100) {
+                    this.showFeedback('Please enter a number between 1 and 100', 'error');
+                    return;
+                }
+
+                this.attempts++;
+                this.guessHistory.push(guess);
+                this.updateStats();
+                this.updateHistory(guess);
+
+                if (guess === this.targetNumber) {
+                    this.handleWin();
+                } else {
+                    const difference = Math.abs(this.targetNumber - guess);
+                    this.updateTemperature(difference);
+                    this.provideFeedback(guess, difference);
+                }
+
+                this.input.value = '';
+                this.input.focus();
+            }
+
+            updateTemperature(difference) {
+                const percentage = Math.max(0, 100 - (difference * 2));
+                this.temperatureFill.style.width = `${percentage}%`;
+            }
+
+            provideFeedback(guess, difference) {
+                let message;
+                let color;
+
+                if (difference > 40) {
+                    message = 'Freezing cold!';
+                    color = 'var(--error)';
+                } else if (difference > 20) {
+                    message = 'Cold';
+                    color = '#e67e22';
+                } else if (difference > 10) {
+                    message = 'Warm';
+                    color = 'var(--warning)';
+                } else {
+                    message = 'Hot!';
+                    color = 'var(--success)';
+                }
+
+                message += ` The number is ${guess < this.targetNumber ? 'higher' : 'lower'}`;
+                this.showFeedback(message, color);
+                this.createParticles(color);
+            }
+
+            showFeedback(message, color) {
+                this.feedback.style.color = color;
+                this.feedback.textContent = message;
+            }
+
+            updateHistory(guess) {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = `Guess #${this.attempts}: ${guess}`;
+                this.historyList.insertBefore(item, this.historyList.firstChild);
+            }
+
+            handleWin() {
+                if (this.bestScore === '-' || this.attempts < this.bestScore) {
+                    this.bestScore = this.attempts;
+                    localStorage.setItem('bestScore', this.bestScore);
+                }
+                
+                document.getElementById('finalAttempts').textContent = this.attempts;
+                this.victoryScreen.style.display = 'flex';
+                this.createVictoryParticles();
+            }
+
+            showHint() {
+                const range = 10;
+                const min = Math.max(1, this.targetNumber - range);
+                const max = Math.min(100, this.targetNumber + range);
+                this.showFeedback(`The number is between ${min} and ${max}`, 'var(--warning)');
+                this.hintOrb.style.display = 'none';
+            }
+
+            createParticles(color) {
+                const rect = this.feedback.getBoundingClientRect();
+                for (let i = 0; i < 10; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = color;
+                    particle.style.left = `${rect.left + rect.width/2}px`;
+                    particle.style.top = `${rect.top + rect.height/2}px`;
+                    document.body.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            createVictoryParticles() {
+                const colors = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db'];
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle';
+                        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                        particle.style.left = `${Math.random() * window.innerWidth}px`;
+                        particle.style.top = `${Math.random() * window.innerHeight}px`;
+                        document.body.appendChild(particle);
+                        setTimeout(() => particle.remove(), 1000);
+                    }, i * 50);
+                }
+            }
+
+            updateStats() {
+                this.attemptsDisplay.textContent = this.attempts;
+                this.bestScoreDisplay.textContent = this.bestScore;
+            }
+
+            newGame() {
+                this.targetNumber = Math.floor(Math.random() * 100) + 1;
+                this.attempts = 0;
+                this.guessHistory = [];
+                this.historyList.innerHTML = '';
+                this.feedback.textContent = '';
+                this.temperatureFill.style.width = '50%';
+                this.victoryScreen.style.display = 'none';
+                this.hintOrb.style.display = 'flex';
+                this.updateStats();
+            }
+        }
+
+        const game = new NumberGuessingGame();
+    </script>
+</body>
+</html>

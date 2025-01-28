@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Whack-a-Mole Arcade</title>
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #ff2e63;
+            --mole: #8b4513;
+            --hole: #2d3436;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --text: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            font-family: 'Russo One', sans-serif;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .game-header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(255, 46, 99, 0.3);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .hole {
+            aspect-ratio: 1;
+            background: var(--hole);
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .hole::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 100%, 
+                rgba(0, 0, 0, 0.2) 0%, 
+                rgba(0, 0, 0, 0) 60%);
+        }
+
+        .mole {
+            width: 90%;
+            height: 90%;
+            position: absolute;
+            bottom: -100%;
+            left: 5%;
+            background: var(--mole);
+            border-radius: 50%;
+            transition: bottom 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        .mole::after {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 20%;
+            width: 30%;
+            height: 15%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: rotate(-45deg);
+        }
+
+        .mole.active {
+            bottom: 5%;
+        }
+
+        .mole.golden {
+            background: linear-gradient(45deg, #ffd700, #ffa500);
+            box-shadow: 0 0 20px #ffd700;
+        }
+
+        .mole.bomb {
+            background: #2d3436;
+            border: 2px solid var(--accent);
+        }
+
+        .mole.bomb::before {
+            content: '💣';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--warning));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .combo-text {
+            position: absolute;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            animation: floatUp 0.8s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { 
+                transform: translateY(0) scale(1); 
+                opacity: 1; 
+            }
+            100% { 
+                transform: translateY(-50px) scale(1.5); 
+                opacity: 0; 
+            }
+        }
+
+        .game-over {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+
+        .game-over-content {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--text);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 46, 99, 0.4);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particle 0.8s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .level-up {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: var(--accent);
+            text-shadow: 0 0 20px rgba(255, 46, 99, 0.5);
+            animation: levelUp 1s ease-out forwards;
+            z-index: 100;
+        }
+
+        @keyframes levelUp {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="game-header">
+            <div class="stat">
+                <div class="stat-label">SCORE</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">LEVEL</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">TIME</div>
+                <div class="stat-value" id="time">30</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">HIGH SCORE</div>
+                <div class="stat-value" id="highScore">0</div>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>High Score: <span id="finalHighScore">0</span></p>
+            <button class="btn" onclick="game.restart()">Play Again</button>
+        </div>
+    </div>
+    <script>
+        class WhackAMole {
+            constructor() {
+                this.score = 0;
+                this.highScore = localStorage.getItem('whackHighScore') || 0;
+                this.timeLeft = 30;
+                this.level = 1;
+                this.isPlaying = false;
+                this.combo = 0;
+                this.lastHit = 0;
+                this.moles = [];
+                this.gameSpeed = 1000;
+                this.initGame();
+            }
+
+            initGame() {
+                this.createGrid();
+                this.updateStats();
+                this.setupEventListeners();
+                document.addEventListener('click', () => {
+                    if (!this.isPlaying) this.startGame();
+                });
+            }
+
+            createGrid() {
+                const grid = document.getElementById('grid');
+                for (let i = 0; i < 12; i++) {
+                    const hole = document.createElement('div');
+                    hole.className = 'hole';
+                    
+                    const mole = document.createElement('div');
+                    mole.className = 'mole';
+                    mole.dataset.index = i;
+                    
+                    hole.appendChild(mole);
+                    grid.appendChild(hole);
+                    this.moles.push(mole);
+
+                    mole.addEventListener('click', (e) => this.whackMole(e));
+                }
+            }
+
+            startGame() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.score = 0;
+                this.timeLeft = 30;
+                this.level = 1;
+                this.combo = 0;
+                this.gameSpeed = 1000;
+                this.updateStats();
+                this.gameLoop = setInterval(() => this.showMole(), this.gameSpeed);
+                this.timeLoop = setInterval(() => this.updateTime(), 1000);
+            }
+
+            showMole() {
+                const availableMoles = this.moles.filter(mole => 
+                    !mole.classList.contains('active') &&
+                    !mole.classList.contains('hit')
+                );
+
+                if (availableMoles.length === 0) return;
+
+                const randomMole = availableMoles[Math.floor(Math.random() * availableMoles.length)];
+                const isBomb = Math.random() < 0.1;
+                const isGolden = !isBomb && Math.random() < 0.05;
+
+                randomMole.classList.add('active');
+                if (isBomb) randomMole.classList.add('bomb');
+                if (isGolden) randomMole.classList.add('golden');
+
+                const duration = Math.max(1000 - (this.level * 50), 400);
+                setTimeout(() => {
+                    randomMole.classList.remove('active', 'bomb', 'golden', 'hit');
+                }, duration);
+            }
+
+            whackMole(e) {
+                if (!this.isPlaying) return;
+                
+                const mole = e.target;
+                if (!mole.classList.contains('active') || mole.classList.contains('hit')) return;
+
+                mole.classList.add('hit');
+
+                if (mole.classList.contains('bomb')) {
+                    this.handleBombHit(mole);
+                } else if (mole.classList.contains('golden')) {
+                    this.handleGoldenHit(mole);
+                } else {
+                    this.handleNormalHit(mole);
+                }
+
+                this.updateStats();
+                this.checkLevelUp();
+            }
+
+            handleBombHit(mole) {
+                this.score = Math.max(0, this.score - 50);
+                this.combo = 0;
+                this.createParticles(mole, '#ff4444', 12);
+                this.showComboText(mole, '-50', '#ff4444');
+                this.shakeScreen();
+            }
+
+            handleGoldenHit(mole) {
+                const points = 50 * this.combo;
+                this.score += points;
+                this.createParticles(mole, '#ffd700', 15);
+                this.showComboText(mole, `+${points}`, '#ffd700');
+                this.increaseCombo();
+            }
+
+            handleNormalHit(mole) {
+                const points = 10 * this.combo;
+                this.score += points;
+                this.createParticles(mole, '#4ade80', 8);
+                this.showComboText(mole, `+${points}`, '#4ade80');
+                this.increaseCombo();
+            }
+
+            increaseCombo() {
+                const now = Date.now();
+                if (now - this.lastHit < 1000) {
+                    this.combo++;
+                } else {
+                    this.combo = 1;
+                }
+                this.lastHit = now;
+            }
+
+            createParticles(element, color, count) {
+                const rect = element.getBoundingClientRect();
+                for (let i = 0; i < count; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.backgroundColor = color;
+                    particle.style.left = `${rect.left + rect.width/2}px`;
+                    particle.style.top = `${rect.top + rect.height/2}px`;
+                    document.body.appendChild(particle);
+                    
+                    // Random particle movement
+                    const angle = (Math.random() * 360) * (Math.PI/180);
+                    const velocity = Math.random() * 100 + 50;
+                    particle.style.transform = `translate(
+                        ${Math.cos(angle) * velocity}px,
+                        ${Math.sin(angle) * velocity}px
+                    )`;
+
+                    setTimeout(() => particle.remove(), 800);
+                }
+            }
+
+            showComboText(element, text, color) {
+                const rect = element.getBoundingClientRect();
+                const comboText = document.createElement('div');
+                comboText.className = 'combo-text';
+                comboText.textContent = text;
+                comboText.style.color = color;
+                comboText.style.left = `${rect.left + rect.width/2}px`;
+                comboText.style.top = `${rect.top}px`;
+                document.body.appendChild(comboText);
+                setTimeout(() => comboText.remove(), 800);
+            }
+
+            shakeScreen() {
+                document.body.style.animation = 'none';
+                document.body.offsetHeight; // Trigger reflow
+                document.body.style.animation = 'shake 0.5s';
+            }
+
+            checkLevelUp() {
+                if (this.score > 0 && this.score % 100 === 0) {
+                    this.level++;
+                    this.gameSpeed = Math.max(1000 - (this.level * 50), 400);
+                    clearInterval(this.gameLoop);
+                    this.gameLoop = setInterval(() => this.showMole(), this.gameSpeed);
+                    this.showLevelUp();
+                }
+            }
+
+            showLevelUp() {
+                const levelText = document.createElement('div');
+                levelText.className = 'level-up';
+                levelText.textContent = `Level ${this.level}!`;
+                document.body.appendChild(levelText);
+                setTimeout(() => levelText.remove(), 1000);
+            }
+
+            updateTime() {
+                this.timeLeft--;
+                this.updateStats();
+                
+                if (this.timeLeft <= 0) {
+                    this.endGame();
+                }
+            }
+
+            updateStats() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('time').textContent = this.timeLeft;
+                document.getElementById('highScore').textContent = this.highScore;
+                
+                // Update progress bar
+                const progress = (this.score % 100) / 100 * 100;
+                document.getElementById('progressFill').style.width = `${progress}%`;
+            }
+
+            endGame() {
+                this.isPlaying = false;
+                clearInterval(this.gameLoop);
+                clearInterval(this.timeLoop);
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('whackHighScore', this.highScore);
+                }
+
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalHighScore').textContent = this.highScore;
+                document.getElementById('gameOver').style.display = 'flex';
+            }
+
+            restart() {
+                document.getElementById('gameOver').style.display = 'none';
+                this.startGame();
+            }
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !this.isPlaying) {
+                        this.startGame();
+                    }
+                });
+            }
+        }
+
+        // Initialize game
+        const game = new WhackAMole();
+    </script>
+</body>
+</html>

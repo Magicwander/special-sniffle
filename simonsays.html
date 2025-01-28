@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Advanced Simon Says</title>
+    <style>
+        :root {
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --yellow: #f1c40f;
+            --blue: #3498db;
+            --purple: #9b59b6;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #2c3e50;
+            font-family: 'Arial', sans-serif;
+            flex-direction: column;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .button {
+            width: 150px;
+            height: 150px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+
+        .button:hover {
+            transform: scale(1.05);
+        }
+
+        .green { background: var(--green); }
+        .red { background: var(--red); }
+        .yellow { background: var(--yellow); }
+        .blue { background: var(--blue); }
+
+        .lit {
+            opacity: 1;
+            box-shadow: 0 0 20px currentColor;
+            transform: scale(1.1);
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            background: var(--blue);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+        }
+
+        .stats {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+
+        .score-board {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            color: white;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        .level-indicator {
+            position: absolute;
+            top: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .combo-text {
+            position: absolute;
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level-indicator">Level: <span id="level">1</span></div>
+    
+    <div class="score-board">
+        <div class="score-item">Score: <span id="score">0</span></div>
+        <div class="score-item">Best Score: <span id="highScore">0</span></div>
+        <div class="score-item">Avg. Reaction: <span id="avgReaction">0</span>ms</div>
+    </div>
+
+    <div class="game-container">
+        <div class="button green" data-color="green"></div>
+        <div class="button red" data-color="red"></div>
+        <div class="button yellow" data-color="yellow"></div>
+        <div class="button blue" data-color="blue"></div>
+    </div>
+
+    <div class="controls">
+        <div class="stats">
+            Current Sequence: <span id="currentSequence">0</span>
+        </div>
+        <button class="btn" id="startBtn">Start Game</button>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h1>Game Over!</h1>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Best Reaction Time: <span id="bestReaction">0</span>ms</p>
+        <button class="btn" onclick="game.restart()">Play Again</button>
+    </div>
+
+    <script>
+        class SimonSays {
+            constructor() {
+                this.sequence = [];
+                this.playerSequence = [];
+                this.score = 0;
+                this.highScore = localStorage.getItem('simonHighScore') || 0;
+                this.level = 1;
+                this.isPlaying = false;
+                this.reactionTimes = [];
+                this.lastClickTime = 0;
+                
+                this.buttons = document.querySelectorAll('.button');
+                this.startBtn = document.getElementById('startBtn');
+                
+                this.initializeGame();
+            }
+
+            initializeGame() {
+                this.startBtn.addEventListener('click', () => this.startGame());
+                this.buttons.forEach(button => {
+                    button.addEventListener('click', () => this.handleClick(button));
+                });
+                this.updateDisplays();
+            }
+
+            startGame() {
+                this.sequence = [];
+                this.playerSequence = [];
+                this.score = 0;
+                this.level = 1;
+                this.isPlaying = true;
+                this.reactionTimes = [];
+                this.updateDisplays();
+                this.nextRound();
+            }
+
+            nextRound() {
+                this.playerSequence = [];
+                this.sequence.push(this.getRandomColor());
+                this.updateDisplays();
+                this.playSequence();
+            }
+
+            playSequence() {
+                let i = 0;
+                const interval = setInterval(() => {
+                    this.lightUp(this.buttons[this.getColorIndex(this.sequence[i])]);
+                    i++;
+                    if (i >= this.sequence.length) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            this.enableButtons();
+                            this.lastClickTime = Date.now();
+                        }, 1000);
+                    }
+                }, 1000);
+            }
+
+            handleClick(button) {
+                if (!this.isPlaying) return;
+
+                const reactionTime = Date.now() - this.lastClickTime;
+                this.reactionTimes.push(reactionTime);
+
+                this.lightUp(button);
+                const colorClicked = button.dataset.color;
+                const expectedColor = this.sequence[this.playerSequence.length];
+
+                if (colorClicked === expectedColor) {
+                    this.playerSequence.push(colorClicked);
+                    this.createParticles(button, true);
+                    this.showComboText(button, `+${this.level * 10}`);
+                    
+                    if (this.playerSequence.length === this.sequence.length) {
+                        this.score += this.level * 10;
+                        this.level++;
+                        this.updateDisplays();
+                        setTimeout(() => this.nextRound(), 1000);
+                    }
+                } else {
+                    this.gameOver();
+                }
+
+                this.lastClickTime = Date.now();
+            }
+
+            lightUp(button) {
+                button.classList.add('lit');
+                setTimeout(() => button.classList.remove('lit'), 300);
+            }
+
+            getRandomColor() {
+                const colors = ['green', 'red', 'yellow', 'blue'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            getColorIndex(color) {
+                const colors = ['green', 'red', 'yellow', 'blue'];
+                return colors.indexOf(color);
+            }
+
+            enableButtons() {
+                this.buttons.forEach(button => button.style.pointerEvents = 'auto');
+            }
+
+            disableButtons() {
+                this.buttons.forEach(button => button.style.pointerEvents = 'none');
+            }
+
+            createParticles(element, success) {
+                const rect = element.getBoundingClientRect();
+                const color = success ? '#2ecc71' : '#e74c3c';
+                
+                for (let i = 0; i < 10; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = color;
+                    particle.style.left = `${rect.left + rect.width/2}px`;
+                    particle.style.top = `${rect.top + rect.height/2}px`;
+                    document.body.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            showComboText(element, text) {
+                const rect = element.getBoundingClientRect();
+                const comboText = document.createElement('div');
+                comboText.className = 'combo-text';
+                comboText.textContent = text;
+                comboText.style.left = `${rect.left + rect.width/2}px`;
+                comboText.style.top = `${rect.top}px`;
+                document.body.appendChild(comboText);
+                setTimeout(() => comboText.remove(), 1000);
+            }
+
+            gameOver() {
+                this.isPlaying = false;
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('simonHighScore', this.highScore);
+                }
+
+                const bestReaction = Math.min(...this.reactionTimes);
+                document.getElementById('gameOver').style.display = 'flex';
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('bestReaction').textContent = bestReaction;
+            }
+
+            updateDisplays() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('highScore').textContent = this.highScore;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('currentSequence').textContent = this.sequence.length;
+                
+                if (this.reactionTimes.length > 0) {
+                    const avgReaction = Math.round(
+                        this.reactionTimes.reduce((a, b) => a + b) / this.reactionTimes.length
+                    );
+                    document.getElementById('avgReaction').textContent = avgReaction;
+                }
+            }
+
+            restart() {
+                document.getElementById('gameOver').style.display = 'none';
+                this.startGame();
+            }
+        }
+
+        const game = new SimonSays();
+    </script>
+</body>
+</html>

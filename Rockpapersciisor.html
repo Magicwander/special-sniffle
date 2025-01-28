@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimate Rock Paper Scissors</title>
+    <style>
+        :root {
+            --primary-color: #4e54c8;
+            --secondary-color: #8f94fb;
+            --text-color: #fff;
+            --accent-color: #ffd700;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: var(--text-color);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+            width: 800px;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .score {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 30px;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .score::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            to {
+                left: 100%;
+            }
+        }
+
+        .choices {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .choice {
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px var(--accent-color);
+        }
+
+        .choice img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.5));
+        }
+
+        .result-display {
+            font-size: 36px;
+            margin: 30px 0;
+            min-height: 50px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .battle-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 40px 0;
+            height: 200px;
+        }
+
+        .player-choice, .computer-choice {
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.5s;
+        }
+
+        .vs-text {
+            font-size: 48px;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            background: var(--accent-color);
+            border-radius: 50%;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        .winner {
+            animation: winner 0.5s ease-in-out;
+        }
+
+        @keyframes winner {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .streak-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+        }
+
+        .special-move {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: var(--accent-color);
+            color: #000;
+            border-radius: 20px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .special-move.active {
+            opacity: 1;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="streak-counter">Win Streak: <span id="streak">0</span></div>
+        <div class="score-board">
+            <div class="score">Player: <span id="playerScore">0</span></div>
+            <div class="score">Computer: <span id="computerScore">0</span></div>
+        </div>
+
+        <div class="battle-area">
+            <div class="player-choice" id="playerChoice"></div>
+            <div class="vs-text">VS</div>
+            <div class="computer-choice" id="computerChoice"></div>
+        </div>
+
+        <div class="result-display" id="result"></div>
+
+        <div class="choices">
+            <div class="choice" data-choice="rock">
+                <img src="https://cdn-icons-png.flaticon.com/512/6729/6729799.png" alt="Rock">
+            </div>
+            <div class="choice" data-choice="paper">
+                <img src="https://cdn-icons-png.flaticon.com/512/6729/6729807.png" alt="Paper">
+            </div>
+            <div class="choice" data-choice="scissors">
+                <img src="https://cdn-icons-png.flaticon.com/512/6729/6729790.png" alt="Scissors">
+            </div>
+        </div>
+
+        <div class="special-move" id="specialMove">Special Move (Win Streak: 3)</div>
+    </div>
+
+    <script>
+        class RockPaperScissors {
+            constructor() {
+                this.choices = ['rock', 'paper', 'scissors'];
+                this.playerScore = 0;
+                this.computerScore = 0;
+                this.streak = 0;
+                this.specialMoveAvailable = false;
+                this.initializeGame();
+            }
+
+            initializeGame() {
+                this.choiceButtons = document.querySelectorAll('.choice');
+                this.resultDisplay = document.getElementById('result');
+                this.playerScoreDisplay = document.getElementById('playerScore');
+                this.computerScoreDisplay = document.getElementById('computerScore');
+                this.streakDisplay = document.getElementById('streak');
+                this.playerChoiceDisplay = document.getElementById('playerChoice');
+                this.computerChoiceDisplay = document.getElementById('computerChoice');
+                this.specialMoveButton = document.getElementById('specialMove');
+
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                this.choiceButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.playRound(button.dataset.choice);
+                    });
+                });
+
+                this.specialMoveButton.addEventListener('click', () => {
+                    if (this.specialMoveAvailable) {
+                        this.useSpecialMove();
+                    }
+                });
+            }
+
+            playRound(playerChoice) {
+                const computerChoice = this.getComputerChoice();
+                const result = this.determineWinner(playerChoice, computerChoice);
+
+                this.animateBattle(playerChoice, computerChoice);
+                this.updateScore(result);
+                this.createParticles(result);
+                this.checkSpecialMove();
+            }
+
+            getComputerChoice() {
+                return this.choices[Math.floor(Math.random() * this.choices.length)];
+            }
+
+            determineWinner(player, computer) {
+                if (player === computer) return 'tie';
+                if ((player === 'rock' && computer === 'scissors') ||
+                    (player === 'paper' && computer === 'rock') ||
+                    (player === 'scissors' && computer === 'paper')) {
+                    return 'win';
+                }
+                return 'lose';
+            }
+
+            animateBattle(playerChoice, computerChoice) {
+                this.playerChoiceDisplay.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/6729/${this.getImageId(playerChoice)}.png">`;
+                this.computerChoiceDisplay.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/6729/${this.getImageId(computerChoice)}.png">`;
+
+                this.playerChoiceDisplay.style.transform = 'translateX(-50px)';
+                this.computerChoiceDisplay.style.transform = 'translateX(50px)';
+
+                setTimeout(() => {
+                    this.playerChoiceDisplay.style.transform = 'translateX(0)';
+                    this.computerChoiceDisplay.style.transform = 'translateX(0)';
+                }, 500);
+            }
+
+            getImageId(choice) {
+                switch(choice) {
+                    case 'rock': return '6729799';
+                    case 'paper': return '6729807';
+                    case 'scissors': return '6729790';
+                }
+            }
+
+            updateScore(result) {
+                switch(result) {
+                    case 'win':
+                        this.playerScore++;
+                        this.streak++;
+                        this.resultDisplay.textContent = 'You Win! 🎉';
+                        this.playerChoiceDisplay.classList.add('winner');
+                        break;
+                    case 'lose':
+                        this.computerScore++;
+                        this.streak = 0;
+                        this.resultDisplay.textContent = 'You Lose! 😢';
+                        this.computerChoiceDisplay.classList.add('winner');
+                        break;
+                    case 'tie':
+                        this.resultDisplay.textContent = "It's a Tie! 🤝";
+                        break;
+                }
+
+                setTimeout(() => {
+                    this.playerChoiceDisplay.classList.remove('winner');
+                    this.computerChoiceDisplay.classList.remove('winner');
+                }, 500);
+
+                this.playerScoreDisplay.textContent = this.playerScore;
+                this.computerScoreDisplay.textContent = this.computerScore;
+                this.streakDisplay.textContent = this.streak;
+            }
+
+            createParticles(result) {
+                const color = result === 'win' ? '#4eff75' : 
+                             result === 'lose' ? '#ff4e4e' : '#ffffff';
+
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = color;
+                    particle.style.left = `${50 + (Math.random() - 0.5) * 50}%`;
+                    particle.style.top = `${50 + (Math.random() - 0.5) * 50}%`;
+                    document.querySelector('.game-container').appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            checkSpecialMove() {
+                this.specialMoveAvailable = this.streak >= 3;
+                this.specialMoveButton.classList.toggle('active', this.specialMoveAvailable);
+            }
+
+            useSpecialMove() {
+                this.playerScore += 2;
+                this.playerScoreDisplay.textContent = this.playerScore;
+                this.resultDisplay.textContent = 'Special Move! +2 Points! 🌟';
+                this.specialMoveAvailable = false;
+                this.streak = 0;
+                this.streakDisplay.textContent = this.streak;
+                this.specialMoveButton.classList.remove('active');
+                this.createParticles('special');
+            }
+        }
+
+        // Initialize game
+        const game = new RockPaperScissors();
+    </script>
+</body>
+</html>
